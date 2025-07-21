@@ -2,8 +2,8 @@ package dynamo
 
 import (
 	"context"
-	"testing"
 	"errors"
+	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
@@ -13,25 +13,36 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-func Test_ClientSet(t *testing.T) {
+// in client_test.go
+
+func setupTest(t *testing.T) (
+	ctx context.Context,
+	client *Client,
+	mockDB *MockdynamoDBInterface,
+	mockLogger *MockLogger,
+	mockMetrics *MockMetrics,
+	finish func(),
+) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockDB := NewMockdynamoDBInterface(ctrl)
-	mockLogger := NewMockLogger(ctrl)
-	mockMetrics := NewMockMetrics(ctrl)
-
-	client := &Client{
+	mockDB = NewMockdynamoDBInterface(ctrl)
+	mockLogger = NewMockLogger(ctrl)
+	mockMetrics = NewMockMetrics(ctrl)
+	client = &Client{
 		db:      mockDB,
 		configs: &Configs{Table: "test-table", Region: "us-east-1"},
 		logger:  mockLogger,
 		metrics: mockMetrics,
 	}
+	ctx = context.Background()
+	finish = func() { ctrl.Finish() }
+	return
+}
 
-	ctx := context.Background()
-	key := "test-key"
-	val := "test-value"
+func Test_ClientSet(t *testing.T) {
+	ctx, client, mockDB, mockLogger, mockMetrics, finish := setupTest(t)
+	defer finish()
 
+	key, val := "test-key", "test-value"
 	expectedInput := &dynamodb.PutItemInput{
 		TableName: aws.String("test-table"),
 		Item: map[string]types.AttributeValue{
@@ -41,9 +52,7 @@ func Test_ClientSet(t *testing.T) {
 	}
 
 	mockDB.EXPECT().PutItem(ctx, expectedInput, gomock.Any()).Return(&dynamodb.PutItemOutput{}, nil)
-
 	mockLogger.EXPECT().Debug(gomock.Any())
-
 	mockMetrics.EXPECT().RecordHistogram(
 		gomock.Any(),
 		"app_dynamodb_stats",
@@ -52,38 +61,19 @@ func Test_ClientSet(t *testing.T) {
 		"type", "SET",
 	)
 
-	err := client.Set(ctx, key, val)
-
-	require.NoError(t, err)
+	require.NoError(t, client.Set(ctx, key, val))
 }
 
 func Test_ClientSetError(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
+	ctx, client, mockDB, mockLogger, mockMetrics, finish := setupTest(t)
+	defer finish()
 
-	mockDB := NewMockdynamoDBInterface(ctrl)
-	mockLogger := NewMockLogger(ctrl)
-	mockMetrics := NewMockMetrics(ctrl)
+	key, val := "test-key", "test-value"
+	expectedErr := errors.New("dynamodb error")
 
-	client := &Client{
-		db:      mockDB,
-		configs: &Configs{Table: "test-table", Region: "us-east-1"},
-		logger:  mockLogger,
-		metrics: mockMetrics,
-	}
-
-	ctx := context.Background()
-	key := "test-key"
-	val := "test-value"
-
-	expectedError := errors.New("dynamodb error")
-
-	mockDB.EXPECT().PutItem(ctx, gomock.Any(), gomock.Any()).Return(nil, expectedError)
-
-	mockLogger.EXPECT().Debugf("error while setting data for key: %v, error: %v", key, expectedError)
-
+	mockDB.EXPECT().PutItem(ctx, gomock.Any(), gomock.Any()).Return(nil, expectedErr)
+	mockLogger.EXPECT().Debugf("error while setting data for key: %v, error: %v", key, expectedErr)
 	mockLogger.EXPECT().Debug(gomock.Any())
-
 	mockMetrics.EXPECT().RecordHistogram(
 		gomock.Any(),
 		"app_dynamodb_stats",
@@ -93,7 +83,6 @@ func Test_ClientSetError(t *testing.T) {
 	)
 
 	err := client.Set(ctx, key, val)
-
 	require.Error(t, err)
-	assert.Equal(t, expectedError, err)
+	assert.Equal(t, expectedErr, err)
 }
