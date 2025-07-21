@@ -25,6 +25,7 @@ type Configs struct {
 }
 type dynamoDBInterface interface {
 	PutItem(ctx context.Context, params *dynamodb.PutItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.PutItemOutput, error)
+	GetItem(ctx context.Context, params *dynamodb.GetItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.GetItemOutput, error)
 	// We'll add more methods later for Get/Delete, but keep minimal for now.
 }
 
@@ -84,6 +85,35 @@ func (c *Client) Connect() {
 	c.db = db
 
 	c.logger.Infof("connected to DynamoDB table %v in region %v", c.configs.Table, c.configs.Region)
+}
+
+func (c *Client) Get(ctx context.Context, key string) (string, error) {
+	span := c.addTrace(ctx, "get", key)
+	defer c.sendOperationsStats(time.Now(), "GET", "get", span, key)
+
+	input := &dynamodb.GetItemInput{
+		TableName: aws.String(c.configs.Table),
+		Key: map[string]types.AttributeValue{
+			"pk": &types.AttributeValueMemberS{Value: key},
+		},
+	}
+
+	out, err := c.db.GetItem(ctx, input)
+	if err != nil {
+		c.logger.Debugf("error while fetching data for key: %v, error: %v", key, err)
+		return "", err
+	}
+
+	if out.Item == nil {
+		return "", fmt.Errorf("key not found")
+	}
+
+	val, ok := out.Item["value"].(*types.AttributeValueMemberS)
+	if !ok {
+		return "", fmt.Errorf("invalid value type")
+	}
+
+	return val.Value, nil
 }
 
 func (c *Client) Set(ctx context.Context, key, val string) error {

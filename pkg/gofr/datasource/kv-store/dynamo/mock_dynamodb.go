@@ -41,6 +41,26 @@ func (m *MockdynamoDBInterface) EXPECT() *MockdynamoDBInterfaceMockRecorder {
 	return m.recorder
 }
 
+// GetItem mocks base method.
+func (m *MockdynamoDBInterface) GetItem(ctx context.Context, params *dynamodb.GetItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.GetItemOutput, error) {
+	m.ctrl.T.Helper()
+	varargs := []any{ctx, params}
+	for _, a := range optFns {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "GetItem", varargs...)
+	ret0, _ := ret[0].(*dynamodb.GetItemOutput)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetItem indicates an expected call of GetItem.
+func (mr *MockdynamoDBInterfaceMockRecorder) GetItem(ctx, params any, optFns ...any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]any{ctx, params}, optFns...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetItem", reflect.TypeOf((*MockdynamoDBInterface)(nil).GetItem), varargs...)
+}
+
 // PutItem mocks base method.
 func (m *MockdynamoDBInterface) PutItem(ctx context.Context, params *dynamodb.PutItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.PutItemOutput, error) {
 	m.ctrl.T.Helper()
