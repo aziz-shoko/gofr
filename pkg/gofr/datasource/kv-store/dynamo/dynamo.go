@@ -64,15 +64,16 @@ func (c *Client) UseTracer(tracer any) {
 	}
 }
 
-func (c *Client) Connect() {
+func (c *Client) Connect() error {
 	c.logger.Debugf("connecting to DynamoDB table %v in region %v", c.configs.Table, c.configs.Region)
 
 	dynamoBuckets := []float64{1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000}
-	c.metrics.NewHistogram("app_dynamodb_kv_stats", "Response time of DynamoDB queries in milliseconds.", dynamoBuckets...)
+	c.metrics.NewHistogram("app_dynamodb_duration_ms", "Response time of DynamoDB queries in milliseconds.", dynamoBuckets...)
 
 	awsCfg, err := config.LoadDefaultConfig(context.Background(), config.WithRegion(c.configs.Region))
 	if err != nil {
 		c.logger.Errorf("error loading AWS config: %v", err)
+		return fmt.Errorf("failed to load AWS config: %w", err)
 	}
 
 	var opts []func(*dynamodb.Options)
@@ -87,6 +88,8 @@ func (c *Client) Connect() {
 	c.db = db
 
 	c.logger.Infof("connected to DynamoDB table %v in region %v", c.configs.Table, c.configs.Region)
+
+	return nil
 }
 
 func (c *Client) Get(ctx context.Context, key string) (string, error) {
@@ -102,7 +105,7 @@ func (c *Client) Get(ctx context.Context, key string) (string, error) {
 
 	out, err := c.db.GetItem(ctx, input)
 	if err != nil {
-		c.logger.Debugf("error while fetching data for key: %v, error: %v", key, err)
+		c.logger.Errorf("error while fetching data for key: %v, error: %v", key, err)
 		return "", err
 	}
 
@@ -112,7 +115,7 @@ func (c *Client) Get(ctx context.Context, key string) (string, error) {
 
 	val, ok := out.Item["value"].(*types.AttributeValueMemberS)
 	if !ok {
-		return "", fmt.Errorf("invalid value type")
+		return "", fmt.Errorf("invalid value type for key %s", key)
 	}
 
 	return val.Value, nil
@@ -132,7 +135,7 @@ func (c *Client) Set(ctx context.Context, key, val string) error {
 
 	_, err := c.db.PutItem(ctx, input)
 	if err != nil {
-		c.logger.Debugf("error while setting data for key: %v, error: %v", key, err)
+		c.logger.Errorf("error while setting data for key: %v, error: %v", key, err)
 		return err
 	}
 
@@ -152,7 +155,7 @@ func (c *Client) Delete(ctx context.Context, key string) error {
 
 	_, err := c.db.DeleteItem(ctx, input)
 	if err != nil {
-		c.logger.Debugf("error while deleting data for key: %v, error: %v", key, err)
+		c.logger.Errorf("error while deleting data for key: %v, error: %v", key, err)
 		return err
 	}
 
@@ -195,10 +198,10 @@ func (c *Client) sendOperationsStats(start time.Time, methodType string, method 
 
 	if span != nil {
 		defer span.End()
-		span.SetAttributes(attribute.Int64(fmt.Sprintf("dynamodb.%v.duration(μs)", method), duration))
+		span.SetAttributes(attribute.Int64("dynamodb.duration_us", duration))
 	}
 
-	c.metrics.RecordHistogram(context.Background(), "app_dynamodb_stats", float64(duration), "table", c.configs.Table,
+	c.metrics.RecordHistogram(context.Background(), "app_dynamodb_duration_ms", float64(duration), "table", c.configs.Table, // Changed name to "app_dynamodb_duration_ms" to match the histogram creation
 		"type", methodType)
 }
 
@@ -206,6 +209,7 @@ func (c *Client) addTrace(ctx context.Context, method, key string) trace.Span {
 	if c.tracer != nil {
 		_, span := c.tracer.Start(ctx, fmt.Sprintf("dynamodb-%v", method))
 		span.SetAttributes(
+			attribute.String("dynamodb.method", method),
 			attribute.String("dynamodb.key", key),
 		)
 		return span

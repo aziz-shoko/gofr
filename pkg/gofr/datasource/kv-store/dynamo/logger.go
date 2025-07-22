@@ -1,10 +1,5 @@
 package dynamo
 
-import (
-	"fmt"
-	"io"
-)
-
 type Logger interface {
 	Debug(args ...any)
 	Debugf(pattern string, args ...any)
@@ -18,9 +13,4 @@ type Log struct {
 	Type     string `json:"type"`
 	Duration int64  `json:"duration"`
 	Key      string `json:"key"`
-}
-
-func (l *Log) PrettyPrint(writer io.Writer) {
-	fmt.Fprintf(writer, "\u001B[38;5;8m%-32s \u001B[38;5;162m%-6s\u001B[0m %8d\u001B[38;5;8mµs\u001B[0m %s \n",
-		l.Type, "BADGR", l.Duration, l.Key)
 }

@@ -55,7 +55,7 @@ func Test_ClientSet(t *testing.T) {
 	mockLogger.EXPECT().Debug(gomock.Any())
 	mockMetrics.EXPECT().RecordHistogram(
 		gomock.Any(),
-		"app_dynamodb_stats",
+		"app_dynamodb_duration_ms",
 		gomock.Any(),
 		"table", client.configs.Table,
 		"type", "SET",
@@ -72,11 +72,11 @@ func Test_ClientSetError(t *testing.T) {
 	expectedErr := errors.New("dynamodb error")
 
 	mockDB.EXPECT().PutItem(ctx, gomock.Any(), gomock.Any()).Return(nil, expectedErr)
-	mockLogger.EXPECT().Debugf("error while setting data for key: %v, error: %v", key, expectedErr)
+	mockLogger.EXPECT().Errorf("error while setting data for key: %v, error: %v", key, expectedErr)
 	mockLogger.EXPECT().Debug(gomock.Any())
 	mockMetrics.EXPECT().RecordHistogram(
 		gomock.Any(),
-		"app_dynamodb_stats",
+		"app_dynamodb_duration_ms",
 		gomock.Any(),
 		"table", "test-table",
 		"type", "SET",
@@ -110,7 +110,7 @@ func Test_ClientGet(t *testing.T) {
 	mockLogger.EXPECT().Debug(gomock.Any())
 	mockMetrics.EXPECT().RecordHistogram(
 		gomock.Any(),
-		"app_dynamodb_stats",
+		"app_dynamodb_duration_ms",
 		gomock.Any(),
 		"table", "test-table",
 		"type", "GET",
@@ -137,11 +137,11 @@ func Test_ClientGetError(t *testing.T) {
 	}
 
 	mockDB.EXPECT().GetItem(ctx, expectedInput, gomock.Any()).Return(nil, expectedErr)
-	mockLogger.EXPECT().Debugf("error while fetching data for key: %v, error: %v", key, expectedErr)
+	mockLogger.EXPECT().Errorf("error while fetching data for key: %v, error: %v", key, expectedErr)
 	mockLogger.EXPECT().Debug(gomock.Any())
 	mockMetrics.EXPECT().RecordHistogram(
 		gomock.Any(),
-		"app_dynamodb_stats",
+		"app_dynamodb_duration_ms",
 		gomock.Any(),
 		"table", "test-table",
 		"type", "GET",
@@ -170,7 +170,7 @@ func Test_ClientDelete(t *testing.T) {
 	mockLogger.EXPECT().Debug(gomock.Any())
 	mockMetrics.EXPECT().RecordHistogram(
 		gomock.Any(),
-		"app_dynamodb_stats",
+		"app_dynamodb_duration_ms",
 		gomock.Any(),
 		"table", client.configs.Table,
 		"type", "DELETE",
@@ -194,11 +194,11 @@ func Test_ClientDeleteError(t *testing.T) {
 	}
 
 	mockDB.EXPECT().DeleteItem(ctx, expectedInput, gomock.Any()).Return(nil, expectedErr)
-	mockLogger.EXPECT().Debugf("error while deleting data for key: %v, error: %v", key, expectedErr)
+	mockLogger.EXPECT().Errorf("error while deleting data for key: %v, error: %v", key, expectedErr)
 	mockLogger.EXPECT().Debug(gomock.Any())
 	mockMetrics.EXPECT().RecordHistogram(
 		gomock.Any(),
-		"app_dynamodb_stats",
+		"app_dynamodb_duration_ms",
 		gomock.Any(),
 		"table", "test-table",
 		"type", "DELETE",
