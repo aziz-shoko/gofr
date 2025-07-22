@@ -27,6 +27,7 @@ type dynamoDBInterface interface {
 	PutItem(ctx context.Context, params *dynamodb.PutItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.PutItemOutput, error)
 	GetItem(ctx context.Context, params *dynamodb.GetItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.GetItemOutput, error)
 	DeleteItem(ctx context.Context, params *dynamodb.DeleteItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.DeleteItemOutput, error)
+	DescribeTable(ctx context.Context, params *dynamodb.DescribeTableInput, optFns ...func(*dynamodb.Options)) (*dynamodb.DescribeTableOutput, error)
 	// We'll add more methods later for Get/Delete, but keep minimal for now.
 }
 
@@ -156,6 +157,30 @@ func (c *Client) Delete(ctx context.Context, key string) error {
 	}
 
 	return nil
+}
+
+type Health struct {
+	Status  string         `json:"status,omitempty"`
+	Details map[string]any `json:"details,omitempty"`
+}
+
+func (c *Client) HealthCheck(context.Context) (any, error) {
+	h := Health{
+		Details: make(map[string]any),
+	}
+
+	h.Details["table"] = c.configs.Table
+	h.Details["region"] = c.configs.Region
+
+	input := &dynamodb.DescribeTableInput{TableName: aws.String(c.configs.Table)}
+	_, err := c.db.DescribeTable(context.Background(), input)
+	if err != nil {
+		h.Status = "DOWN"
+		return &h, errStatusDown
+	}
+
+	h.Status = "UP"
+	return &h, nil
 }
 
 func (c *Client) sendOperationsStats(start time.Time, methodType string, method string,

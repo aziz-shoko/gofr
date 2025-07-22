@@ -208,3 +208,50 @@ func Test_ClientDeleteError(t *testing.T) {
 	require.Error(t, err)
 	assert.Equal(t, expectedErr, err)
 }
+
+func Test_ClientHealthCheckSuccess(t *testing.T) {
+	ctx, client, mockDB, _, _, finish := setupTest(t)
+	defer finish()
+
+	expectedInput := &dynamodb.DescribeTableInput{
+		TableName: aws.String("test-table"),
+	}
+
+	mockDB.EXPECT().DescribeTable(context.Background(), expectedInput, gomock.Any()).Return(&dynamodb.DescribeTableOutput{}, nil)
+
+	res, err := client.HealthCheck(ctx)
+
+	require.NoError(t, err)
+	h, ok := res.(*Health)
+	require.True(t, ok)
+	assert.Equal(t, "UP", h.Status)
+	assert.Equal(t, map[string]any{
+		"table":  "test-table",
+		"region": "us-east-1",
+	}, h.Details)
+}
+
+func Test_ClientHealthCheckFailure(t *testing.T) {
+	ctx, client, mockDB, _, _, finish := setupTest(t)
+	defer finish()
+
+	expectedErr := errors.New("dynamodb error")
+	expectedInput := &dynamodb.DescribeTableInput{
+		TableName: aws.String("test-table"),
+	}
+
+	mockDB.EXPECT().DescribeTable(context.Background(), expectedInput, gomock.Any()).Return(nil, expectedErr)
+
+	res, err := client.HealthCheck(ctx)
+
+	require.Error(t, err)
+	assert.Equal(t, errStatusDown, err)
+	h, ok := res.(*Health)
+	require.True(t, ok)
+	assert.Equal(t, "DOWN", h.Status)
+	assert.Equal(t, map[string]any{
+		"table":  "test-table",
+		"region": "us-east-1",
+	}, h.Details)
+}
+

@@ -61,6 +61,26 @@ func (mr *MockdynamoDBInterfaceMockRecorder) DeleteItem(ctx, params any, optFns 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteItem", reflect.TypeOf((*MockdynamoDBInterface)(nil).DeleteItem), varargs...)
 }
 
+// DescribeTable mocks base method.
+func (m *MockdynamoDBInterface) DescribeTable(ctx context.Context, params *dynamodb.DescribeTableInput, optFns ...func(*dynamodb.Options)) (*dynamodb.DescribeTableOutput, error) {
+	m.ctrl.T.Helper()
+	varargs := []any{ctx, params}
+	for _, a := range optFns {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "DescribeTable", varargs...)
+	ret0, _ := ret[0].(*dynamodb.DescribeTableOutput)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DescribeTable indicates an expected call of DescribeTable.
+func (mr *MockdynamoDBInterfaceMockRecorder) DescribeTable(ctx, params any, optFns ...any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]any{ctx, params}, optFns...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DescribeTable", reflect.TypeOf((*MockdynamoDBInterface)(nil).DescribeTable), varargs...)
+}
+
 // GetItem mocks base method.
 func (m *MockdynamoDBInterface) GetItem(ctx context.Context, params *dynamodb.GetItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.GetItemOutput, error) {
 	m.ctrl.T.Helper()
