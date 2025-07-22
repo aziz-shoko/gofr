@@ -153,3 +153,58 @@ func Test_ClientGetError(t *testing.T) {
 	assert.Equal(t, expectedErr, err)
 	assert.Empty(t, value)
 }
+
+func Test_ClientDelete(t *testing.T) {
+	ctx, client, mockDB, mockLogger, mockMetrics, finish := setupTest(t)
+	defer finish()
+
+	key := "test-key"
+	expectedInput := &dynamodb.DeleteItemInput{
+		TableName: aws.String("test-table"),
+		Key: map[string]types.AttributeValue{
+			"pk": &types.AttributeValueMemberS{Value: key},
+		},
+	}
+
+	mockDB.EXPECT().DeleteItem(ctx, expectedInput, gomock.Any()).Return(&dynamodb.DeleteItemOutput{}, nil)
+	mockLogger.EXPECT().Debug(gomock.Any())
+	mockMetrics.EXPECT().RecordHistogram(
+		gomock.Any(),
+		"app_dynamodb_stats",
+		gomock.Any(),
+		"table", client.configs.Table,
+		"type", "DELETE",
+	)
+
+	require.NoError(t, client.Delete(ctx, key))
+}
+
+func Test_ClientDeleteError(t *testing.T) {
+	ctx, client, mockDB, mockLogger, mockMetrics, finish := setupTest(t)
+	defer finish()
+
+	key := "test-key"
+	expectedErr := errors.New("dynamodb error")
+
+	expectedInput := &dynamodb.DeleteItemInput{
+		TableName: aws.String("test-table"),
+		Key: map[string]types.AttributeValue{
+			"pk": &types.AttributeValueMemberS{Value: key},
+		},
+	}
+
+	mockDB.EXPECT().DeleteItem(ctx, expectedInput, gomock.Any()).Return(nil, expectedErr)
+	mockLogger.EXPECT().Debugf("error while deleting data for key: %v, error: %v", key, expectedErr)
+	mockLogger.EXPECT().Debug(gomock.Any())
+	mockMetrics.EXPECT().RecordHistogram(
+		gomock.Any(),
+		"app_dynamodb_stats",
+		gomock.Any(),
+		"table", "test-table",
+		"type", "DELETE",
+	)
+
+	err := client.Delete(ctx, key)
+	require.Error(t, err)
+	assert.Equal(t, expectedErr, err)
+}

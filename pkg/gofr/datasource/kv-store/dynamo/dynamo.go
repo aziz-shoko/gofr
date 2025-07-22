@@ -26,6 +26,7 @@ type Configs struct {
 type dynamoDBInterface interface {
 	PutItem(ctx context.Context, params *dynamodb.PutItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.PutItemOutput, error)
 	GetItem(ctx context.Context, params *dynamodb.GetItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.GetItemOutput, error)
+	DeleteItem(ctx context.Context, params *dynamodb.DeleteItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.DeleteItemOutput, error)
 	// We'll add more methods later for Get/Delete, but keep minimal for now.
 }
 
@@ -131,6 +132,26 @@ func (c *Client) Set(ctx context.Context, key, val string) error {
 	_, err := c.db.PutItem(ctx, input)
 	if err != nil {
 		c.logger.Debugf("error while setting data for key: %v, error: %v", key, err)
+		return err
+	}
+
+	return nil
+}
+
+func (c *Client) Delete(ctx context.Context, key string) error {
+	span := c.addTrace(ctx, "delete", key)
+	defer c.sendOperationsStats(time.Now(), "DELETE", "delete", span, key)
+
+	input := &dynamodb.DeleteItemInput{
+		TableName: aws.String(c.configs.Table),
+		Key: map[string]types.AttributeValue{
+			"pk": &types.AttributeValueMemberS{Value: key},
+		},
+	}
+
+	_, err := c.db.DeleteItem(ctx, input)
+	if err != nil {
+		c.logger.Debugf("error while deleting data for key: %v, error: %v", key, err)
 		return err
 	}
 
