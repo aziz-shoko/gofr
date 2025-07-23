@@ -98,7 +98,7 @@ func (c *Client) Connect() error {
 
 func (c *Client) Get(ctx context.Context, key string) (map[string]any, error) {
 	span := c.addTrace(ctx, "get", key)
-	defer c.sendOperationsStats(time.Now(), "GET", "get", span, key)
+	defer c.sendOperationsStats(time.Now(), "GET", span, key)
 
 	input := &dynamodb.GetItemInput{
 		TableName: aws.String(c.configs.Table),
@@ -131,7 +131,7 @@ func (c *Client) Get(ctx context.Context, key string) (map[string]any, error) {
 
 func (c *Client) Set(ctx context.Context, key string, attributes map[string]any) error {
 	span := c.addTrace(ctx, "set", key)
-	defer c.sendOperationsStats(time.Now(), "SET", "set", span, key)
+	defer c.sendOperationsStats(time.Now(), "SET", span, key)
 
 	itemAV, err := attributevalue.MarshalMap(attributes)
 	if err != nil {
@@ -156,7 +156,7 @@ func (c *Client) Set(ctx context.Context, key string, attributes map[string]any)
 
 func (c *Client) Delete(ctx context.Context, key string) error {
 	span := c.addTrace(ctx, "delete", key)
-	defer c.sendOperationsStats(time.Now(), "DELETE", "delete", span, key)
+	defer c.sendOperationsStats(time.Now(), "DELETE", span, key)
 
 	input := &dynamodb.DeleteItemInput{
 		TableName: aws.String(c.configs.Table),
@@ -198,7 +198,7 @@ func (c *Client) HealthCheck(context.Context) (any, error) {
 	return &h, nil
 }
 
-func (c *Client) sendOperationsStats(start time.Time, methodType string, method string,
+func (c *Client) sendOperationsStats(start time.Time, methodType string,
 	span trace.Span, kv ...string) {
 	duration := time.Since(start).Microseconds()
 
@@ -213,7 +213,7 @@ func (c *Client) sendOperationsStats(start time.Time, methodType string, method 
 		span.SetAttributes(attribute.Int64("dynamodb.duration_us", duration))
 	}
 
-	c.metrics.RecordHistogram(context.Background(), "app_dynamodb_duration_ms", float64(duration), "table", c.configs.Table, // Changed name to "app_dynamodb_duration_ms" to match the histogram creation
+	c.metrics.RecordHistogram(context.Background(), "app_dynamodb_duration_ms", float64(duration), "table", c.configs.Table,
 		"type", methodType)
 }
 
