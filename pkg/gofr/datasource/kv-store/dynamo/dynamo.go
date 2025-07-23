@@ -9,6 +9,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 
@@ -124,19 +125,23 @@ func (c *Client) Get(ctx context.Context, key string) (string, error) {
 	return val.Value, nil
 }
 
-func (c *Client) Set(ctx context.Context, key, val string) error {
+func (c *Client) Set(ctx context.Context, key string, attributes map[string]any) error {
 	span := c.addTrace(ctx, "set", key)
-	defer c.sendOperationsStats(time.Now(), "SET", "set", span, key, val)
+	defer c.sendOperationsStats(time.Now(), "SET", "set", span, key)
 
-	input := &dynamodb.PutItemInput{
-		TableName: aws.String(c.configs.Table),
-		Item: map[string]types.AttributeValue{
-			c.configs.PartitionKeyName: &types.AttributeValueMemberS{Value: key},
-			"value": &types.AttributeValueMemberS{Value: val},
-		},
+	itemAV, err := attributevalue.MarshalMap(attributes)
+	if err != nil {
+		c.logger.Errorf("error marshaling attributes for key: %v, error: %v", key, err)
+		return err
 	}
 
-	_, err := c.db.PutItem(ctx, input)
+	itemAV[c.configs.PartitionKeyName] = &types.AttributeValueMemberS{Value: key}
+	input := &dynamodb.PutItemInput{
+		TableName: aws.String(c.configs.Table),
+		Item: itemAV,
+	}
+
+	_, err = c.db.PutItem(ctx, input)
 	if err != nil {
 		c.logger.Errorf("error while setting data for key: %v, error: %v", key, err)
 		return err

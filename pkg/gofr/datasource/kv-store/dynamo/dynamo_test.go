@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/stretchr/testify/assert"
@@ -42,13 +43,16 @@ func Test_ClientSet(t *testing.T) {
 	ctx, client, mockDB, mockLogger, mockMetrics, finish := setupTest(t)
 	defer finish()
 
-	key, val := "test-key", "test-value"
+	key := "test-key"
+	attributes := map[string]any{"field1": "value1", "field2": "value2"}
+
+	itemAV, err := attributevalue.MarshalMap(attributes)
+	require.NoError(t, err)
+	itemAV["pk"] = &types.AttributeValueMemberS{Value: key}
+
 	expectedInput := &dynamodb.PutItemInput{
 		TableName: aws.String("test-table"),
-		Item: map[string]types.AttributeValue{
-			"pk":    &types.AttributeValueMemberS{Value: key},
-			"value": &types.AttributeValueMemberS{Value: val},
-		},
+		Item:      itemAV,
 	}
 
 	mockDB.EXPECT().PutItem(ctx, expectedInput, gomock.Any()).Return(&dynamodb.PutItemOutput{}, nil)
@@ -61,14 +65,15 @@ func Test_ClientSet(t *testing.T) {
 		"type", "SET",
 	)
 
-	require.NoError(t, client.Set(ctx, key, val))
+	require.NoError(t, client.Set(ctx, key, attributes))
 }
 
 func Test_ClientSetError(t *testing.T) {
 	ctx, client, mockDB, mockLogger, mockMetrics, finish := setupTest(t)
 	defer finish()
 
-	key, val := "test-key", "test-value"
+	key := "test-key"
+	attributes := map[string]any{"field1": "value1", "field2": "value2"}
 	expectedErr := errors.New("dynamodb error")
 
 	mockDB.EXPECT().PutItem(ctx, gomock.Any(), gomock.Any()).Return(nil, expectedErr)
@@ -82,7 +87,7 @@ func Test_ClientSetError(t *testing.T) {
 		"type", "SET",
 	)
 
-	err := client.Set(ctx, key, val)
+	err := client.Set(ctx, key, attributes)
 	require.Error(t, err)
 	assert.Equal(t, expectedErr, err)
 }
