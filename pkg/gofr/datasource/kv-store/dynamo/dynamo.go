@@ -19,16 +19,16 @@ import (
 var errStatusDown = errors.New("status down")
 
 type Configs struct {
-	Table    string
-	Region   string
-	Endpoint string
+	Table            string
+	Region           string
+	Endpoint         string
+	PartitionKeyName string
 }
 type dynamoDBInterface interface {
 	PutItem(ctx context.Context, params *dynamodb.PutItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.PutItemOutput, error)
 	GetItem(ctx context.Context, params *dynamodb.GetItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.GetItemOutput, error)
 	DeleteItem(ctx context.Context, params *dynamodb.DeleteItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.DeleteItemOutput, error)
 	DescribeTable(ctx context.Context, params *dynamodb.DescribeTableInput, optFns ...func(*dynamodb.Options)) (*dynamodb.DescribeTableOutput, error)
-	// We'll add more methods later for Get/Delete, but keep minimal for now.
 }
 
 type Client struct {
@@ -40,6 +40,9 @@ type Client struct {
 }
 
 func New(configs Configs) *Client {
+	if configs.PartitionKeyName == "" {
+		configs.PartitionKeyName = "pk"
+	}
 	return &Client{configs: &configs}
 }
 
@@ -99,7 +102,7 @@ func (c *Client) Get(ctx context.Context, key string) (string, error) {
 	input := &dynamodb.GetItemInput{
 		TableName: aws.String(c.configs.Table),
 		Key: map[string]types.AttributeValue{
-			"pk": &types.AttributeValueMemberS{Value: key},
+			c.configs.PartitionKeyName: &types.AttributeValueMemberS{Value: key},
 		},
 	}
 
@@ -128,7 +131,7 @@ func (c *Client) Set(ctx context.Context, key, val string) error {
 	input := &dynamodb.PutItemInput{
 		TableName: aws.String(c.configs.Table),
 		Item: map[string]types.AttributeValue{
-			"pk":    &types.AttributeValueMemberS{Value: key},
+			c.configs.PartitionKeyName: &types.AttributeValueMemberS{Value: key},
 			"value": &types.AttributeValueMemberS{Value: val},
 		},
 	}
@@ -149,7 +152,7 @@ func (c *Client) Delete(ctx context.Context, key string) error {
 	input := &dynamodb.DeleteItemInput{
 		TableName: aws.String(c.configs.Table),
 		Key: map[string]types.AttributeValue{
-			"pk": &types.AttributeValueMemberS{Value: key},
+			c.configs.PartitionKeyName: &types.AttributeValueMemberS{Value: key},
 		},
 	}
 

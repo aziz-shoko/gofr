@@ -29,7 +29,7 @@ func setupTest(t *testing.T) (
 	mockMetrics = NewMockMetrics(ctrl)
 	client = &Client{
 		db:      mockDB,
-		configs: &Configs{Table: "test-table", Region: "us-east-1"},
+		configs: &Configs{Table: "test-table", Region: "us-east-1", PartitionKeyName: "pk"},
 		logger:  mockLogger,
 		metrics: mockMetrics,
 	}
@@ -254,4 +254,3 @@ func Test_ClientHealthCheckFailure(t *testing.T) {
 		"region": "us-east-1",
 	}, h.Details)
 }
-
