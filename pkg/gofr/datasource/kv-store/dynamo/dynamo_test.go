@@ -96,7 +96,12 @@ func Test_ClientGet(t *testing.T) {
 	ctx, client, mockDB, mockLogger, mockMetrics, finish := setupTest(t)
 	defer finish()
 
-	key, val := "test-key", "test-value"
+	key := "test-key"
+	expectedAttributes := map[string]any{"field1": "value1", "field2": "value2"}
+
+	itemAV, err := attributevalue.MarshalMap(expectedAttributes)
+	require.NoError(t, err)
+	itemAV["pk"] = &types.AttributeValueMemberS{Value: key}
 
 	expectedInput := &dynamodb.GetItemInput{
 		TableName: aws.String("test-table"),
@@ -106,9 +111,7 @@ func Test_ClientGet(t *testing.T) {
 	}
 
 	expectedOutput := &dynamodb.GetItemOutput{
-		Item: map[string]types.AttributeValue{
-			"value": &types.AttributeValueMemberS{Value: val},
-		},
+		Item: itemAV,
 	}
 
 	mockDB.EXPECT().GetItem(ctx, expectedInput, gomock.Any()).Return(expectedOutput, nil)
@@ -121,10 +124,10 @@ func Test_ClientGet(t *testing.T) {
 		"type", "GET",
 	)
 
-	value, err := client.Get(ctx, key)
+	result, err := client.Get(ctx, key)
 
 	require.NoError(t, err)
-	assert.Equal(t, value, val)
+	assert.Equal(t, expectedAttributes, result) // pk is deleted in Get
 }
 
 func Test_ClientGetError(t *testing.T) {
@@ -156,7 +159,7 @@ func Test_ClientGetError(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Equal(t, expectedErr, err)
-	assert.Empty(t, value)
+	assert.Nil(t, value)
 }
 
 func Test_ClientDelete(t *testing.T) {

@@ -96,7 +96,7 @@ func (c *Client) Connect() error {
 	return nil
 }
 
-func (c *Client) Get(ctx context.Context, key string) (string, error) {
+func (c *Client) Get(ctx context.Context, key string) (map[string]any, error) {
 	span := c.addTrace(ctx, "get", key)
 	defer c.sendOperationsStats(time.Now(), "GET", "get", span, key)
 
@@ -110,19 +110,23 @@ func (c *Client) Get(ctx context.Context, key string) (string, error) {
 	out, err := c.db.GetItem(ctx, input)
 	if err != nil {
 		c.logger.Errorf("error while fetching data for key: %v, error: %v", key, err)
-		return "", err
+		return nil, err
 	}
 
 	if out.Item == nil {
-		return "", fmt.Errorf("key not found")
+		return nil, fmt.Errorf("key not found")
 	}
 
-	val, ok := out.Item["value"].(*types.AttributeValueMemberS)
-	if !ok {
-		return "", fmt.Errorf("invalid value type for key %s", key)
+	var result map[string]any
+	err = attributevalue.UnmarshalMap(out.Item, &result)
+	if err != nil {
+		c.logger.Errorf("error unmarshaling item for key: %v, error: %v", key, err)
+		return nil, err
 	}
 
-	return val.Value, nil
+	delete(result, c.configs.PartitionKeyName)
+
+	return result, nil
 }
 
 func (c *Client) Set(ctx context.Context, key string, attributes map[string]any) error {
@@ -138,7 +142,7 @@ func (c *Client) Set(ctx context.Context, key string, attributes map[string]any)
 	itemAV[c.configs.PartitionKeyName] = &types.AttributeValueMemberS{Value: key}
 	input := &dynamodb.PutItemInput{
 		TableName: aws.String(c.configs.Table),
-		Item: itemAV,
+		Item:      itemAV,
 	}
 
 	_, err = c.db.PutItem(ctx, input)
