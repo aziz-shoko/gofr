@@ -14,8 +14,6 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-// in client_test.go
-
 func setupTest(t *testing.T) (
 	ctx context.Context,
 	client *Client,
@@ -127,7 +125,7 @@ func Test_ClientGet(t *testing.T) {
 	result, err := client.Get(ctx, key)
 
 	require.NoError(t, err)
-	assert.Equal(t, expectedAttributes, result) // pk is deleted in Get
+	assert.Equal(t, expectedAttributes, result)
 }
 
 func Test_ClientGetError(t *testing.T) {
